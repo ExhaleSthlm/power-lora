@@ -1,0 +1,140 @@
+substitutions:
+  transmit_interval: 120s
+  stale_after: 360s
+
+esphome:
+  name: power-lora-receiver
+  friendly_name: Power LoRa receiver
+  min_version: 2026.9.0
+
+# Both nodes use exactly this radio profile.
+esp32:
+  board: esp32-c3-devkitm-1
+  variant: esp32c3
+  framework:
+    type: esp-idf
+
+logger:
+  hardware_uart: USB_SERIAL_JTAG
+  level: INFO
+
+external_components:
+  - source:
+      type: local
+      path: ../components
+    components: [power_lora]
+
+uart:
+  id: radio_uart
+  tx_pin: GPIO2  # ESP TX -> E220 RXD; known strapping pin
+  rx_pin: GPIO3  # ESP RX <- E220 TXD
+  baud_rate: 9600
+  rx_buffer_size: 256
+
+power_lora:
+  id: radio
+  uart_id: radio_uart
+  role: receiver
+  m0_pin: GPIO0
+  m1_pin: GPIO1
+  aux_pin: GPIO4
+  node_id: 1
+  tx_power: 10
+  airtime_budget: 1000ms
+  transmit_interval: ${transmit_interval}
+  stale_after: ${stale_after}
+
+# No Bluetooth component. Wi-Fi is used only on the receiver.
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  reboot_timeout: 0s
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+  reboot_timeout: 0s  # Keep collecting link diagnostics if HA is unavailable.
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+sensor:
+  - platform: power_lora
+    power_lora_id: radio
+    energy_import:
+      name: "MOCK energy import"
+    energy_export:
+      name: "MOCK energy export"
+    reactive_energy_import:
+      name: "MOCK reactive energy import"
+    reactive_energy_export:
+      name: "MOCK reactive energy export"
+    power_import:
+      name: "MOCK power import"
+    power_export:
+      name: "MOCK power export"
+    reactive_power_import:
+      name: "MOCK reactive power import"
+    reactive_power_export:
+      name: "MOCK reactive power export"
+    power_import_l1:
+      name: "MOCK power import l1"
+    power_import_l2:
+      name: "MOCK power import l2"
+    power_import_l3:
+      name: "MOCK power import l3"
+    power_export_l1:
+      name: "MOCK power export l1"
+    power_export_l2:
+      name: "MOCK power export l2"
+    power_export_l3:
+      name: "MOCK power export l3"
+    reactive_power_import_l1:
+      name: "MOCK reactive power import l1"
+    reactive_power_import_l2:
+      name: "MOCK reactive power import l2"
+    reactive_power_import_l3:
+      name: "MOCK reactive power import l3"
+    reactive_power_export_l1:
+      name: "MOCK reactive power export l1"
+    reactive_power_export_l2:
+      name: "MOCK reactive power export l2"
+    reactive_power_export_l3:
+      name: "MOCK reactive power export l3"
+    voltage_l1:
+      name: "MOCK voltage l1"
+    voltage_l2:
+      name: "MOCK voltage l2"
+    voltage_l3:
+      name: "MOCK voltage l3"
+    current_l1:
+      name: "MOCK current l1"
+    current_l2:
+      name: "MOCK current l2"
+    current_l3:
+      name: "MOCK current l3"
+    packets_received:
+      name: "packets received"
+    packets_missing:
+      name: "packets missing"
+    frames_rejected:
+      name: "frames rejected"
+    duplicates:
+      name: "duplicates"
+    transmitter_restarts:
+      name: "transmitter restarts"
+    last_packet_age:
+      name: "last packet age"
+    rssi:
+      name: "rssi"
+
+binary_sensor:
+  - platform: power_lora
+    power_lora_id: radio
+    radio_ready:
+      name: "Radio ready"
+    mock_data:
+      name: "Mock data"
+    link_alive:
+      name: "Transmitter link"

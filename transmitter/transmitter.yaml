@@ -1,0 +1,61 @@
+substitutions:
+  transmit_interval: 120s
+  stale_after: 360s
+
+esphome:
+  name: power-lora-transmitter
+  friendly_name: Power LoRa transmitter
+  min_version: 2026.9.0
+
+# Both nodes use exactly this radio profile.
+esp32:
+  board: esp32-c3-devkitm-1
+  variant: esp32c3
+  framework:
+    type: esp-idf
+
+logger:
+  hardware_uart: USB_SERIAL_JTAG
+  level: INFO
+
+external_components:
+  - source:
+      type: local
+      path: ../components
+    components: [power_lora]
+
+uart:
+  id: radio_uart
+  tx_pin: GPIO2  # ESP TX -> E220 RXD; known strapping pin
+  rx_pin: GPIO3  # ESP RX <- E220 TXD
+  baud_rate: 9600
+  rx_buffer_size: 256
+
+power_lora:
+  id: radio
+  uart_id: radio_uart
+  role: transmitter
+  m0_pin: GPIO0
+  m1_pin: GPIO1
+  aux_pin: GPIO4
+  node_id: 1
+  tx_power: 10
+  airtime_budget: 1000ms  # Provisional upper budget; verify actual RF airtime.
+  transmit_interval: ${transmit_interval}
+  stale_after: ${stale_after}
+
+# Wi-Fi, Bluetooth, API and OTA are intentionally absent.
+# GPIO5 is reserved for the later HAN UART; mock mode does not initialise it.
+sensor:
+  - platform: power_lora
+    power_lora_id: radio
+    packets_sent:
+      name: "Mock packets sent"
+
+binary_sensor:
+  - platform: power_lora
+    power_lora_id: radio
+    radio_ready:
+      name: "Radio ready"
+    mock_data:
+      name: "Mock data"

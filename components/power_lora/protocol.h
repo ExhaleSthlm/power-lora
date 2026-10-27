@@ -7,10 +7,10 @@
 
 namespace esphome::power_lora {
 
-// v1: four uint32 energy counters, then twenty-two uint16 measurements.
-constexpr size_t FIELD_COUNT = 26;
-constexpr size_t FRAME_SIZE = 76;
-constexpr uint8_t VERSION = 1;
+// v2: two uint32 import energy counters, then fourteen uint16 measurements.
+constexpr size_t FIELD_COUNT = 16;
+constexpr size_t FRAME_SIZE = 52;
+constexpr uint8_t VERSION = 2;
 constexpr uint8_t FLAG_MOCK = 1;
 constexpr uint32_t MISSING = UINT32_MAX;
 
@@ -49,7 +49,7 @@ inline std::array<uint8_t, FRAME_SIZE> encode(const Reading &reading) {
   put(out.data() + 10, reading.sequence, 4);
   size_t offset = 14;
   for (size_t i = 0; i < FIELD_COUNT; i++) {
-    size_t width = i < 4 ? 4 : 2;
+    size_t width = i < 2 ? 4 : 2;
     // Reserve all-ones for missing/overflow; never silently wrap or clamp.
     uint32_t value = reading.values[i];
     if (width == 2 && value >= UINT16_MAX) value = UINT16_MAX;
@@ -68,7 +68,7 @@ inline bool decode(const uint8_t *data, size_t length, Reading &reading) {
   reading.boot = get(data + 6, 4); reading.sequence = get(data + 10, 4);
   size_t offset = 14;
   for (size_t i = 0; i < FIELD_COUNT; i++) {
-    size_t width = i < 4 ? 4 : 2;
+    size_t width = i < 2 ? 4 : 2;
     uint32_t value = get(data + offset, width);
     reading.values[i] = (width == 2 && value == UINT16_MAX) ? MISSING : value;
     offset += width;

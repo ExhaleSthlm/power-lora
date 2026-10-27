@@ -1,11 +1,11 @@
 substitutions:
-  transmit_interval: 120s
+  transmit_interval: 100s
   stale_after: 360s
 
 esphome:
   name: power-lora-transmitter
   friendly_name: Power LoRa transmitter
-  min_version: 2026.9.0
+  min_version: 2026.10.0
 
 # Both nodes use exactly this radio profile.
 esp32:
@@ -27,7 +27,7 @@ external_components:
 uart:
   id: radio_uart
   tx_pin: GPIO2  # ESP TX -> E220 RXD; known strapping pin
-  rx_pin: GPIO3  # ESP RX <- E220 TXD
+  rx_pin: GPIO1  # ESP RX <- E220 TXD
   baud_rate: 9600
   rx_buffer_size: 256
 
@@ -35,9 +35,9 @@ power_lora:
   id: radio
   uart_id: radio_uart
   role: transmitter
-  m0_pin: GPIO0
-  m1_pin: GPIO1
-  aux_pin: GPIO4
+  m0_pin: GPIO4
+  m1_pin: GPIO3
+  aux_pin: GPIO0
   node_id: 1
   tx_power: 10
   airtime_budget: 1000ms  # Provisional upper budget; verify actual RF airtime.

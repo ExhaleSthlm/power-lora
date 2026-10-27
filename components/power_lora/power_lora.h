@@ -30,6 +30,7 @@ class PowerLoRa : public Component, public uart::UARTDevice {
  protected:
   enum class State { ENTER_CONFIG, WRITE_REPLY, READ_REPLY, ENTER_NORMAL, RUNNING, FAILED };
   void transition_(State state, uint32_t now);
+  const char *state_name_() const;
   void fail_(const char *reason);
   void configuration_loop_(uint32_t now);
   void send_mock_(uint32_t now);

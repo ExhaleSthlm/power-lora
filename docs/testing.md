@@ -10,7 +10,7 @@
   avstängd; kontrollera matning, AUX och RX/TX och starta om.
 - Första paketet kommer 120 sekunder efter att radions konfiguration är klar.
   Börja med flera meters avstånd; låt inte antennerna ligga mot varandra.
-- Kontrollera att 26 MOCK-värden, RSSI och paketantal kommer in i HA.
+- Kontrollera att 16 MOCK-värden, RSSI och paketantal kommer in i HA.
 - Stäng av transmittern: paketåldern ska öka, och efter 360 sekunder ska
   `Transmitter link` bli frånkopplad och värdena bli okända.
 - Starta om transmittern: vänta ett helt intervall. Omstartsräknaren ska öka
@@ -19,6 +19,24 @@
   sedan återansluta. Diagnostik lagras i RAM och nollställs vid RX-omstart.
 
 ## 2. Strömbudget
+
+### Om E220-initieringen misslyckas
+
+Loggen visar nu initieringssteg, AUX-nivå och mottagna UART-byte vid fel:
+
+- `ENTER_CONFIG`: väntar på stabil hög AUX efter att M0/M1 satts höga.
+  Kontrollera E220-matning, gemensam jord och AUX → GPIO0.
+- `WRITE_REPLY` med `UART reply=0 bytes`: kommandot har skickats men inget
+  svar har lästs. Kontrollera GPIO2 → RXD, GPIO1 ← TXD och M0/M1-ledningarna.
+  Detta kan också bero på matning eller modulvariant; loggen ensam bevisar
+  inte ett kabelfel.
+- `WRITE_REPLY` eller `READ_REPLY` med byte: spara hexsvaret för kontroll mot
+  modulens registerprotokoll. `READ_REPLY` innebär att skrivsvaret redan godkänts.
+- `ENTER_NORMAL`: registren är verifierade, men AUX blir inte redo efter
+  växlingen till normalläge.
+
+Vid ett fel krävs omstart efter åtgärd. Wi-Fi kan fungera även om radion har
+markerats som felaktig. Gör kontinuitetskontroll med matningen frånkopplad.
 
 Gör minst tio kallstarter med DP100-gränsen 250 mA. Notera om den går över i
 konstantströmsläge, om 5 V sjunker, eller om kortet startar om. Ett DMM eller
@@ -34,7 +52,7 @@ stänga av Wi-Fi och Bluetooth innebär inte att ESP32/E220 sover.
 AUX:s höga nivå betyder inte säkert att sista RF-paketet är färdigsänt. Använd
 inte UART-tiden, AUX-pulsbredden eller `bytes * 8 / air_rate` som exakt airtime.
 Verifiera radioinställningens upptagna bandbredd och totala RF-sändningstid för
-76-bytepaketet med tillverkardata för rätt revision eller RF-mätning (t.ex.
+52-bytepaketet med tillverkardata för rätt revision eller RF-mätning (t.ex.
 SDR/spektrumanalysator med lämplig tidsupplösning).
 
 Den provisoriska budgeten är 1 s per paket. Vid 120 s intervall är gränsen

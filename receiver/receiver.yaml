@@ -5,7 +5,7 @@ substitutions:
 esphome:
   name: power-lora-receiver
   friendly_name: Power LoRa receiver
-  min_version: 2026.9.0
+  min_version: 2026.10.0
 
 # Both nodes use exactly this radio profile.
 esp32:
@@ -27,7 +27,7 @@ external_components:
 uart:
   id: radio_uart
   tx_pin: GPIO2  # ESP TX -> E220 RXD; known strapping pin
-  rx_pin: GPIO3  # ESP RX <- E220 TXD
+  rx_pin: GPIO1  # ESP RX <- E220 TXD
   baud_rate: 9600
   rx_buffer_size: 256
 
@@ -35,9 +35,9 @@ power_lora:
   id: radio
   uart_id: radio_uart
   role: receiver
-  m0_pin: GPIO0
-  m1_pin: GPIO1
-  aux_pin: GPIO4
+  m0_pin: GPIO4
+  m1_pin: GPIO3
+  aux_pin: GPIO0
   node_id: 1
   tx_power: 10
   airtime_budget: 1000ms
@@ -64,44 +64,24 @@ sensor:
     power_lora_id: radio
     energy_import:
       name: "MOCK energy import"
-    energy_export:
-      name: "MOCK energy export"
     reactive_energy_import:
       name: "MOCK reactive energy import"
-    reactive_energy_export:
-      name: "MOCK reactive energy export"
     power_import:
       name: "MOCK power import"
-    power_export:
-      name: "MOCK power export"
     reactive_power_import:
       name: "MOCK reactive power import"
-    reactive_power_export:
-      name: "MOCK reactive power export"
     power_import_l1:
       name: "MOCK power import l1"
     power_import_l2:
       name: "MOCK power import l2"
     power_import_l3:
       name: "MOCK power import l3"
-    power_export_l1:
-      name: "MOCK power export l1"
-    power_export_l2:
-      name: "MOCK power export l2"
-    power_export_l3:
-      name: "MOCK power export l3"
     reactive_power_import_l1:
       name: "MOCK reactive power import l1"
     reactive_power_import_l2:
       name: "MOCK reactive power import l2"
     reactive_power_import_l3:
       name: "MOCK reactive power import l3"
-    reactive_power_export_l1:
-      name: "MOCK reactive power export l1"
-    reactive_power_export_l2:
-      name: "MOCK reactive power export l2"
-    reactive_power_export_l3:
-      name: "MOCK reactive power export l3"
     voltage_l1:
       name: "MOCK voltage l1"
     voltage_l2:

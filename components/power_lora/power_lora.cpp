@@ -26,7 +26,7 @@ void PowerLoRa::setup() {
 }
 
 void PowerLoRa::dump_config() {
-  ESP_LOGCONFIG(TAG, "Power LoRa v1: %s, node=%u, 76-byte MOCK frames", transmitter_ ? "TX" : "RX", node_);
+  ESP_LOGCONFIG(TAG, "Power LoRa v2: %s, node=%u, 52-byte MOCK frames", transmitter_ ? "TX" : "RX", node_);
   ESP_LOGCONFIG(TAG, "868.125 MHz / 2.4 kbps / %u dBm / interval=%lu ms / stale=%lu ms",
                 power_, (unsigned long) interval_, (unsigned long) stale_after_);
   LOG_PIN("  M0: ", m0_); LOG_PIN("  M1: ", m1_); LOG_PIN("  AUX: ", aux_);
@@ -34,6 +34,18 @@ void PowerLoRa::dump_config() {
 
 void PowerLoRa::transition_(State state, uint32_t now) {
   state_ = state; state_since_ = now; reply_.clear();
+  ESP_LOGI(TAG, "E220 stage=%s AUX=%s", state_name_(), aux_->digital_read() ? "HIGH" : "LOW");
+}
+
+const char *PowerLoRa::state_name_() const {
+  switch (state_) {
+    case State::ENTER_CONFIG: return "ENTER_CONFIG";
+    case State::WRITE_REPLY: return "WRITE_REPLY";
+    case State::READ_REPLY: return "READ_REPLY";
+    case State::ENTER_NORMAL: return "ENTER_NORMAL";
+    case State::RUNNING: return "RUNNING";
+    default: return "FAILED";
+  }
 }
 
 bool PowerLoRa::aux_ready_(uint32_t now) const {
@@ -41,6 +53,12 @@ bool PowerLoRa::aux_ready_(uint32_t now) const {
 }
 
 void PowerLoRa::fail_(const char *reason) {
+  char hex[34]{};
+  if (!reply_.empty()) format_hex_pretty_to(hex, reply_);
+  ESP_LOGE(TAG, "stage=%s AUX=%s stable=%s elapsed=%lu ms UART reply=%u bytes [%s]",
+           state_name_(), aux_->digital_read() ? "HIGH" : "LOW",
+           aux_ready_(millis()) ? "yes" : "no", (unsigned long) (millis() - state_since_),
+           unsigned(reply_.size()), reply_.empty() ? "none" : hex);
   ESP_LOGE(TAG, "%s; RF data disabled. Check wiring/power and reboot.", reason);
   m0_->digital_write(true); m1_->digital_write(true);
   state_ = State::FAILED;
@@ -59,6 +77,8 @@ void PowerLoRa::configuration_loop_(uint32_t now) {
     while (available() && read_byte(&ignored)) {}
     std::array<uint8_t, 11> command{0xC2, 0, 8};
     std::copy(regs.begin(), regs.end(), command.begin() + 3);
+    char hex[34];
+    ESP_LOGI(TAG, "UART TX (9600 8N1): %s", format_hex_pretty_to(hex, command));
     write_array(command.data(), command.size());
     transition_(State::WRITE_REPLY, now);
     return;
@@ -68,7 +88,9 @@ void PowerLoRa::configuration_loop_(uint32_t now) {
     transition_(State::RUNNING, now);
     last_tx_ = now;  // Also wait a full interval after every boot.
     publish_binary_(0, true);
-    ESP_LOGI(TAG, "E220 registers verified; ready. First mock TX in %lu s", (unsigned long) (interval_ / 1000));
+    ESP_LOGI(TAG, "E220 registers verified; ready");
+    if (transmitter_)
+      ESP_LOGI(TAG, "First mock TX in %lu s", (unsigned long) (interval_ / 1000));
     return;
   }
   uint8_t byte;
@@ -82,6 +104,7 @@ void PowerLoRa::configuration_loop_(uint32_t now) {
   if (!aux_ready_(now)) return;
   if (state_ == State::WRITE_REPLY) {
     const uint8_t command[]{0xC1, 0, 6};  // Independent read-back of readable registers.
+    ESP_LOGI(TAG, "Register write acknowledged; UART TX read-back: C1:00:06");
     write_array(command, sizeof(command));
     transition_(State::READ_REPLY, now);
   } else {
@@ -127,15 +150,13 @@ void PowerLoRa::send_mock_(uint32_t now) {
   Reading reading;
   reading.node = node_; reading.boot = boot_; reading.sequence = sequence_++;
   // Synthetic meter snapshot, not a synthetic raw P1 telegram. Deliberately
-  // exercise import/export and reactive fields. Counters reset on TX reboot.
+  // exercise active/reactive import fields. Counters reset on TX reboot.
   const uint32_t step = tx_count_ % 12;
   reading.values = {
-      12345678U + tx_count_ * 10U, 123456U + tx_count_,
-      234567U + tx_count_ * 2U, 34567U + tx_count_,
-      1200U + step * 30U, 50U, 180U, 20U,
+      12345678U + tx_count_ * 10U, 234567U + tx_count_ * 2U,
+      1200U + step * 30U, 180U,
       400U + step * 10U, 400U + step * 10U, 400U + step * 10U,
-      0U, 0U, 50U,
-      60U, 60U, 60U, 0U, 0U, 20U,
+      60U, 60U, 60U,
       2301U, 2312U, 2298U, 190U + step * 4U, 190U + step * 4U, 175U + step * 4U};
   auto frame = encode(reading);
   write_array(frame.data(), frame.size());
@@ -158,7 +179,7 @@ void PowerLoRa::receive_(const Reading &reading, int rssi, uint32_t now) {
   publish_binary_(1, true); publish_binary_(2, true);
   for (size_t i = 0; i < FIELD_COUNT; i++) {
     if (measurements_[i] == nullptr) continue;
-    float divisor = i < 4 ? 1000.0f : (i >= 23 ? 100.0f : (i >= 20 ? 10.0f : 1.0f));
+    float divisor = i < 2 ? 1000.0f : (i >= 13 ? 100.0f : (i >= 10 ? 10.0f : 1.0f));
     measurements_[i]->publish_state(reading.values[i] == MISSING ? NAN : reading.values[i] / divisor);
   }
   ESP_LOGI(TAG, "MOCK RX boot=%08lX seq=%lu RSSI=%d dBm received=%lu missing=%lu",

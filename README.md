@@ -3,8 +3,8 @@
 ESPHome på två ESP32-C3 Super Mini med EByte E220-900T22D: elmätaren
 Sagemcom T211 i elrummet → LoRa → Home Assistant i lägenheten.
 
-**Första versionen är ett mocktest.** Den skickar 26 syntetiska mätvärden i ett
-76-byte binärt paket. HAN-porten ska inte anslutas för detta steg. Ingen firmware
+**Första versionen är ett mocktest.** Den skickar 16 syntetiska mätvärden i ett
+52-byte binärt paket. HAN-porten ska inte anslutas för detta steg. Ingen firmware
 har flashats av projektets byggkontroller.
 
 ## Filer
@@ -16,8 +16,8 @@ har flashats av projektets byggkontroller.
 - [Paketformat och radioregister](docs/protocol.md).
 - [Testprotokoll](docs/testing.md): matning, räckvidd och airtime.
 
-Mätvärden: importerad/exporterad aktiv och reaktiv energi; total samt fasvis
-importerad/exporterad aktiv och reaktiv effekt; spänning och ström per fas.
+Mätvärden: importerad aktiv och reaktiv energi; total samt fasvis
+importerad aktiv och reaktiv effekt; spänning och ström per fas.
 Mockvärdena är en transporttestsekvens, inte en elektriskt exakt lastsimulering.
 Energiräknarna börjar om när transmittern startas om.
 
@@ -25,11 +25,11 @@ Energiräknarna börjar om när transmittern startas om.
 
 | ESP32-C3 | E220 |
 | --- | --- |
-| GPIO0 | M0 |
-| GPIO1 | M1 |
+| GPIO4 | M0 |
+| GPIO3 | M1 |
 | GPIO2 (ESP TX) | RXD |
-| GPIO3 (ESP RX) | TXD |
-| GPIO4 | AUX |
+| GPIO1 (ESP RX) | TXD |
+| GPIO0 | AUX |
 | 5 V | VCC |
 | GND | GND |
 
@@ -139,3 +139,11 @@ på transmitterns andra UART (GPIO5, normalt 115200 med inverterad RX).
 Det kräver ett verkligt telegram från T211 för att kontrollera tillgängliga
 fält, enheter och datagiltighet. Värden som saknas ska markeras saknade,
 inte ersättas med noll. Vid övergången skiljs live-entiteter från mockdata.
+
+## Uppgradering till paketformat v2
+
+Exportvärdena är borttagna: 16 mätvärden i 52 byte, jämfört med 26 i 76 byte.
+Uppdatera **både mottagare och sändare**; v1 och v2 är inte kompatibla.
+Behåll befintliga secrets och namn för importsensorerna. Gamla exportentiteter
+kan ligga kvar som otillgängliga i HA och kan då tas bort där.
+Sändningsintervallet och airtime-budgeten ändras inte av denna uppgradering.

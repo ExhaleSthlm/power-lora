@@ -5,31 +5,29 @@ from . import PowerLoRa
 
 DEPENDENCIES = ["power_lora"]
 
-# Order is the v1 wire contract. Append/change only with a new version.
+# Order is the v2 wire contract. Append/change only with a new version.
 FIELDS = [
-    "energy_import", "energy_export", "reactive_energy_import", "reactive_energy_export",
-    "power_import", "power_export", "reactive_power_import", "reactive_power_export",
+    "energy_import", "reactive_energy_import",
+    "power_import", "reactive_power_import",
     "power_import_l1", "power_import_l2", "power_import_l3",
-    "power_export_l1", "power_export_l2", "power_export_l3",
     "reactive_power_import_l1", "reactive_power_import_l2", "reactive_power_import_l3",
-    "reactive_power_export_l1", "reactive_power_export_l2", "reactive_power_export_l3",
     "voltage_l1", "voltage_l2", "voltage_l3", "current_l1", "current_l2", "current_l3",
 ]
 DIAGNOSTICS = ["packets_received", "packets_missing", "frames_rejected", "duplicates",
                "transmitter_restarts", "last_packet_age", "rssi", "packets_sent"]
 
 def field_schema(index):
-    if index < 4:
-        unit, decimals, device = ("kWh", 3, "energy") if index < 2 else ("kvarh", 3, None)
-    elif index < 20:
-        reactive = index in (6, 7) or index >= 14
+    if index < 2:
+        unit, decimals, device = ("kWh", 3, "energy") if index == 0 else ("kvarh", 3, None)
+    elif index < 10:
+        reactive = index == 3 or index >= 7
         unit, decimals, device = ("var", 0, "reactive_power") if reactive else ("W", 0, "power")
-    elif index < 23:
+    elif index < 13:
         unit, decimals, device = "V", 1, "voltage"
     else:
         unit, decimals, device = "A", 2, "current"
     options = dict(unit_of_measurement=unit, accuracy_decimals=decimals,
-                   state_class="total_increasing" if index < 4 else "measurement")
+                   state_class="total_increasing" if index < 2 else "measurement")
     if device:
         options["device_class"] = device
     return sensor.sensor_schema(**options)

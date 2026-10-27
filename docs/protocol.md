@@ -1,4 +1,4 @@
-# Power LoRa v1
+# Power LoRa v2
 
 First stage is **mock only**. It tests binary transport, not the P1 parser. Both
 nodes use the local `power_lora` ESPHome external component. No external Arduino
@@ -6,7 +6,7 @@ LoRa library is needed: E220 does the modulation and exposes a UART.
 
 ## Wire layout
 
-One 76-byte application frame per transmission, little-endian integers, no C++
+One 52-byte application frame per transmission, little-endian integers, no C++
 struct casting or floating-point representation on the wire. E220 is configured
 for 128-byte sub-packets, so the complete application frame fits in one packet.
 All bytes are submitted in a single UART write at 9600 baud, 8N1.
@@ -14,14 +14,14 @@ All bytes are submitted in a single UART write at 9600 baud, 8N1.
 | Offset | Bytes | Meaning |
 | --- | ---: | --- |
 | 0 | 2 | Magic `50 4C` (PL) |
-| 2 | 1 | Version = 1 |
+| 2 | 1 | Version = 2 |
 | 3 | 1 | Flags: bit 0 = mock; other bits must be zero |
 | 4 | 2 | Node ID, default 1 |
 | 6 | 4 | Random boot/session ID |
 | 10 | 4 | Sequence number, starts at 0, wraps modulo 2^32 |
-| 14 | 16 | Four energy counters, uint32 each |
-| 30 | 44 | Twenty-two measurements, uint16 each |
-| 74 | 2 | CRC-16/CCITT-FALSE over bytes 0–73, little-endian |
+| 14 | 8 | Two import energy counters, uint32 each |
+| 22 | 28 | Fourteen measurements, uint16 each |
+| 50 | 2 | CRC-16/CCITT-FALSE over bytes 0–49, little-endian |
 
 CRC polynomial 0x1021, init 0xFFFF, no reflection, xorout 0. Check value for
 ASCII `123456789` is 0x29B1. CRC is error detection, **not authentication or
@@ -31,14 +31,12 @@ encryption**. The radio crypt key is explicitly set to zero for the mock test.
 
 | Index | Values (in order) | Wire unit | HA unit |
 | --- | --- | --- | --- |
-| 0–3 | Energy import, export, reactive import, reactive export | Wh / varh | kWh / kvarh |
-| 4–7 | Total active import, active export, reactive import, reactive export | W / var | W / var |
-| 8–10 | Active import L1, L2, L3 | W | W |
-| 11–13 | Active export L1, L2, L3 | W | W |
-| 14–16 | Reactive import L1, L2, L3 | var | var |
-| 17–19 | Reactive export L1, L2, L3 | var | var |
-| 20–22 | Voltage L1, L2, L3 | 0.1 V | V |
-| 23–25 | Current L1, L2, L3 | 0.01 A | A |
+| 0–1 | Active energy import, reactive energy import | Wh / varh | kWh / kvarh |
+| 2–3 | Total active import, reactive import | W / var | W / var |
+| 4–6 | Active import L1, L2, L3 | W | W |
+| 7–9 | Reactive import L1, L2, L3 | var | var |
+| 10–12 | Voltage L1, L2, L3 | 0.1 V | V |
+| 13–15 | Current L1, L2, L3 | 0.01 A | A |
 
 All-ones denotes missing or out-of-range: uint32 0xFFFFFFFF or uint16 0xFFFF.
 Valid energy range is 0–4,294,967,294 Wh/varh; other values 0–65,534 wire units.
@@ -50,8 +48,8 @@ large energy counter is not necessarily retained in the published float.
 ## Receiver semantics
 
 E220 appends an RSSI byte to each received sub-packet. It is not part of the
-76-byte application frame or its CRC. RSSI dBm = byte − 256. The parser expects
-76 frame bytes followed by that suffix, and handles fragmented UART delivery,
+52-byte application frame or its CRC. RSSI dBm = byte − 256. The parser expects
+52 frame bytes followed by that suffix, and handles fragmented UART delivery,
 noise and multiple consecutive frames. A partial stream expires after 2 seconds.
 The suffix itself has no application-level integrity check.
 
@@ -91,3 +89,10 @@ nor E220 is put into deep sleep. That optimisation can follow the power test.
 
 Sources: [EByte manual](https://www.ebyte.com/Uploadfiles/Files/2021-7-6/202176188184448.pdf),
 [manufacturer manual mirror](https://pdf.direnc.net/upload/llcc68-ebyte-e220-900t22d-868mhz-915mhz-22dbm-kablosuz-lorawan-modul.pdf).
+
+## Migration from v1
+
+v2 removes all ten export measurements (including reactive export). Both nodes
+must be updated. Old versions are rejected even when their CRC is valid.
+The 24-byte reduction is 31.6% of application bytes; it is not an asserted
+31.6% reduction in RF airtime. Radio settings and timing budgets are unchanged.
